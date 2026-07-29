@@ -1,0 +1,158 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { Sparkles, ShieldCheck, Code2, ArrowRight, Zap, LineChart, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { setAuth, type Role } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Sign in · SprintSense AI" },
+      { name: "description", content: "Sign in to SprintSense, the AI-powered sprint risk predictor for high-performing agile teams." },
+      { property: "og:title", content: "Sign in · SprintSense AI" },
+      { property: "og:description", content: "AI-powered sprint risk prediction for high-performing agile teams." },
+    ],
+  }),
+  component: LoginPage,
+});
+
+function LoginPage() {
+  const [role, setRole] = useState<Role>("scrum");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const navigate = useNavigate();
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const defaultName = role === "scrum" ? "Riley Park" : "Ava Chen";
+    setAuth({
+      role,
+      name: name || defaultName,
+      email: email || (role === "scrum" ? "riley@sprintsense.ai" : "ava@sprintsense.ai"),
+    });
+    navigate({ to: role === "scrum" ? "/dashboard" : "/dev/dashboard" });
+  };
+
+  return (
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* Left: illustration */}
+      <div className="relative hidden lg:flex flex-col justify-between p-12 overflow-hidden bg-gradient-to-br from-primary via-fuchsia-600 to-indigo-700 text-white">
+        <div className="absolute inset-0 opacity-40" style={{
+          background: "radial-gradient(circle at 20% 20%, rgba(255,255,255,.35), transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,255,255,.2), transparent 40%)"
+        }} />
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full bg-white/10 animate-pulse"
+              style={{
+                width: `${20 + (i * 7) % 80}px`,
+                height: `${20 + (i * 7) % 80}px`,
+                left: `${(i * 13) % 100}%`,
+                top: `${(i * 17) % 100}%`,
+                animationDelay: `${i * 0.2}s`,
+                animationDuration: `${3 + (i % 4)}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative">
+          <div className="flex items-center gap-2">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/20 backdrop-blur">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <span className="font-display text-xl font-bold">SprintSense</span>
+          </div>
+        </div>
+
+        <div className="relative space-y-6">
+          <h1 className="font-display text-5xl font-bold leading-tight">
+            Predict sprint risk<br/>before it happens.
+          </h1>
+          <p className="text-lg text-white/85 max-w-md">
+            An AI copilot for scrum masters. Continuously analyzes every story update to surface risk, recommend action, and protect your sprint.
+          </p>
+          <div className="grid grid-cols-3 gap-3 max-w-md">
+            {[
+              { icon: Bot, k: "AI", v: "Continuous" },
+              { icon: LineChart, k: "94%", v: "Forecast accuracy" },
+              { icon: Zap, k: "12x", v: "Faster triage" },
+            ].map(({ icon: I, k, v }) => (
+              <div key={k} className="rounded-2xl bg-white/10 backdrop-blur border border-white/20 p-4">
+                <I className="h-5 w-5 mb-2" />
+                <div className="font-display text-2xl font-bold">{k}</div>
+                <div className="text-xs text-white/75">{v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative text-xs text-white/70">Trusted by agile teams shipping to production every day.</div>
+      </div>
+
+      {/* Right: form */}
+      <div className="flex items-center justify-center p-6 lg:p-12">
+        <form onSubmit={submit} className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div>
+            <div className="lg:hidden flex items-center gap-2 mb-6">
+              <div className="grid h-10 w-10 place-items-center rounded-xl gradient-primary text-white">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <span className="font-display text-xl font-bold">SprintSense</span>
+            </div>
+            <h2 className="font-display text-3xl font-bold tracking-tight">Welcome back</h2>
+            <p className="text-sm text-muted-foreground mt-1">Sign in to your workspace to continue.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <RoleCard active={role === "scrum"} onClick={() => setRole("scrum")} icon={ShieldCheck} title="Scrum Master" subtitle="Full workspace" />
+            <RoleCard active={role === "developer"} onClick={() => setRole("developer")} icon={Code2} title="Developer" subtitle="My stories" />
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Full name</Label>
+              <Input id="name" placeholder={role === "scrum" ? "Riley Park" : "Ava Chen"} value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5" />
+            </div>
+            <div>
+              <Label htmlFor="email">Work email</Label>
+              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" />
+            </div>
+            <div>
+              <Label htmlFor="pw">Password</Label>
+              <Input id="pw" type="password" defaultValue="••••••••" className="mt-1.5" />
+            </div>
+          </div>
+
+          <Button type="submit" className="w-full gradient-primary text-white h-11 text-sm font-semibold shadow-lg glow">
+            Continue as {role === "scrum" ? "Scrum Master" : "Developer"} <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+          <p className="text-xs text-center text-muted-foreground">Demo mode · any credentials work</p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function RoleCard({ active, onClick, icon: Icon, title, subtitle }: { active: boolean; onClick: () => void; icon: any; title: string; subtitle: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "text-left rounded-2xl border p-4 transition-all",
+        active ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md" : "border-border hover:border-primary/50 hover:bg-accent/40",
+      )}
+    >
+      <div className={cn("grid h-9 w-9 place-items-center rounded-lg mb-2", active ? "gradient-primary text-white" : "bg-muted text-muted-foreground")}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="font-semibold text-sm">{title}</div>
+      <div className="text-xs text-muted-foreground">{subtitle}</div>
+    </button>
+  );
+}
