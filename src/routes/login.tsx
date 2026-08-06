@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Sparkles, ShieldCheck, Code2, ArrowRight, Zap, LineChart, Bot } from "lucide-react";
+import { Sparkles, ShieldCheck, Code2, ArrowRight, Zap, LineChart, Bot, UserPlus, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setAuth, type Role } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -20,20 +22,92 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [role, setRole] = useState<Role>("scrum");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      toast.error("Please enter email and password.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.post("/api/auth/login", { email, password });
+      const { access_token, user: authUser } = res.data;
+      
+      setAuth({
+        id: authUser.id,
+        role: authUser.role as Role,
+        name: authUser.name,
+        email: authUser.email,
+        token: access_token,
+        firstLogin: authUser.first_login,
+      });
+
+      toast.success(`Welcome back, ${authUser.name}!`);
+
+      if (authUser.first_login) {
+        navigate({ to: "/change-password" });
+      } else {
+        navigate({ to: authUser.role === "scrum" ? "/dashboard" : "/dev/dashboard" });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || "Authentication failed. Check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!name || !email || !password) {
+      toast.error("Please enter name, email, and password.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post("/api/auth/register-scrum-master", {
+        name,
+        email,
+        password,
+        role: "scrum"
+      });
+
+      toast.success("Registration successful! Logging you in...");
+      // Auto login after registration
+      const loginRes = await api.post("/api/auth/login", { email, password });
+      const { access_token, user: authUser } = loginRes.data;
+
+      setAuth({
+        id: authUser.id,
+        role: authUser.role as Role,
+        name: authUser.name,
+        email: authUser.email,
+        token: access_token,
+        firstLogin: authUser.first_login,
+      });
+
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || "Registration failed. Try a different email.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const defaultName = role === "scrum" ? "Riley Park" : "Ava Chen";
-    setAuth({
-      role,
-      name: name || defaultName,
-      email: email || (role === "scrum" ? "riley@sprintsense.ai" : "ava@sprintsense.ai"),
-    });
-    navigate({ to: role === "scrum" ? "/dashboard" : "/dev/dashboard" });
+    if (mode === "login") {
+      handleLogin();
+    } else {
+      handleRegister();
+    }
   };
 
   return (
@@ -96,7 +170,7 @@ function LoginPage() {
 
       {/* Right: form */}
       <div className="flex items-center justify-center p-6 lg:p-12">
-        <form onSubmit={submit} className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div>
             <div className="lg:hidden flex items-center gap-2 mb-6">
               <div className="grid h-10 w-10 place-items-center rounded-xl gradient-primary text-white">
@@ -104,35 +178,67 @@ function LoginPage() {
               </div>
               <span className="font-display text-xl font-bold">SprintSense</span>
             </div>
-            <h2 className="font-display text-3xl font-bold tracking-tight">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your workspace to continue.</p>
+            <h2 className="font-display text-3xl font-bold tracking-tight">
+              {mode === "login" ? "Welcome back" : "Create SM Workspace"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {mode === "login" ? "Sign in to your workspace to continue." : "Register as a Scrum Master to build your team."}
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <RoleCard active={role === "scrum"} onClick={() => setRole("scrum")} icon={ShieldCheck} title="Scrum Master" subtitle="Full workspace" />
-            <RoleCard active={role === "developer"} onClick={() => setRole("developer")} icon={Code2} title="Developer" subtitle="My stories" />
+          {/* Tab Selection */}
+          <div className="grid grid-cols-2 gap-2 bg-muted/40 p-1.5 rounded-xl border">
+            <button
+              onClick={() => { setMode("login"); setRole("scrum"); }}
+              className={cn("py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all", mode === "login" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            >
+              <LogIn className="h-3.5 w-3.5" /> Sign In
+            </button>
+            <button
+              onClick={() => { setMode("register"); setRole("scrum"); }}
+              className={cn("py-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all", mode === "register" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            >
+              <UserPlus className="h-3.5 w-3.5" /> Register SM
+            </button>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Full name</Label>
-              <Input id="name" placeholder={role === "scrum" ? "Riley Park" : "Ava Chen"} value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5" />
-            </div>
-            <div>
-              <Label htmlFor="email">Work email</Label>
-              <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" />
-            </div>
-            <div>
-              <Label htmlFor="pw">Password</Label>
-              <Input id="pw" type="password" defaultValue="••••••••" className="mt-1.5" />
-            </div>
-          </div>
+          <form onSubmit={submit} className="space-y-4">
+            {/* Show role toggles only in login mode */}
+            {mode === "login" && (
+              <div className="grid grid-cols-2 gap-3">
+                <RoleCard active={role === "scrum"} onClick={() => setRole("scrum")} icon={ShieldCheck} title="Scrum Master" subtitle="Full workspace" />
+                <RoleCard active={role === "developer"} onClick={() => setRole("developer")} icon={Code2} title="Developer" subtitle="My stories" />
+              </div>
+            )}
 
-          <Button type="submit" className="w-full gradient-primary text-white h-11 text-sm font-semibold shadow-lg glow">
-            Continue as {role === "scrum" ? "Scrum Master" : "Developer"} <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <p className="text-xs text-center text-muted-foreground">Demo mode · any credentials work</p>
-        </form>
+            <div className="space-y-4">
+              {mode === "register" && (
+                <div>
+                  <Label htmlFor="name">Full name</Label>
+                  <Input id="name" placeholder="Riley Park" value={name} onChange={(e) => setName(e.target.value)} className="mt-1.5" required />
+                </div>
+              )}
+              <div>
+                <Label htmlFor="email">Work email</Label>
+                <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" required />
+              </div>
+              <div>
+                <Label htmlFor="pw">Password</Label>
+                <Input id="pw" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5" required />
+              </div>
+            </div>
+
+            <Button type="submit" disabled={loading} className="w-full gradient-primary text-white h-11 text-sm font-semibold shadow-lg glow">
+              {loading ? "Processing..." : (mode === "login" ? `Continue as ${role === "scrum" ? "Scrum Master" : "Developer"}` : "Create Scrum Master Account")} <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </form>
+
+          {mode === "login" && (
+            <p className="text-xs text-center text-muted-foreground">
+              Tip: Seed user logins are `riley@sprintsense.ai` or `ava@sprintsense.ai` (Password: `Password123`)
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -144,7 +250,7 @@ function RoleCard({ active, onClick, icon: Icon, title, subtitle }: { active: bo
       type="button"
       onClick={onClick}
       className={cn(
-        "text-left rounded-2xl border p-4 transition-all",
+        "text-left rounded-2xl border p-4 transition-all w-full",
         active ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md" : "border-border hover:border-primary/50 hover:bg-accent/40",
       )}
     >

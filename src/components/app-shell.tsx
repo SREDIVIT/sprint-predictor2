@@ -22,6 +22,7 @@ const scrumNav = [
 
 const devNav = [
   { to: "/dev/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/sprint", label: "Kanban Board", icon: Rocket },
   { to: "/dev/stories", label: "My Stories", icon: ListChecks },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;

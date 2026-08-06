@@ -11,12 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { stories, type Story } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
-import { MessageSquare, Bug, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageSquare, Bug, Sparkles, Folder } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 
 export const Route = createFileRoute("/dev/stories")({
   head: () => ({
@@ -37,11 +37,37 @@ const priorityColor = (p: string) =>
 
 function DevStoriesPage() {
   const user = useAuth();
-  const [editing, setEditing] = useState<Story | null>(null);
-  const [analyze, setAnalyze] = useState<Story | null>(null);
+  const [stories, setStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [analyze, setAnalyze] = useState<any | null>(null);
+
+  const fetchMyStories = async () => {
+    if (!user) return;
+    try {
+      const res = await api.get("/api/stories");
+      const mine = res.data.filter((s: any) => s.developer_id === user.id);
+      setStories(mine);
+    } catch (err) {
+      console.error("Error loading dev stories", err);
+      toast.error("Failed to load your stories.");
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      setLoading(true);
+      fetchMyStories().finally(() => setLoading(false));
+    }
+  }, [user]);
+
   if (user === undefined) return null;
   if (!user) return <Navigate to="/login" />;
-  const mine = stories.filter((s) => s.developerId === "d1");
+
+  const handleUpdateComplete = (updatedStory: any) => {
+    setStories(prev => prev.map(s => s.id === updatedStory.id ? updatedStory : s));
+    setAnalyze(updatedStory);
+  };
 
   return (
     <AppShell>
@@ -54,92 +80,153 @@ function DevStoriesPage() {
           <p className="text-muted-foreground mt-1">Update progress · AI will re-analyze automatically.</p>
         </div>
 
-        <div className="glass rounded-2xl overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Story</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead className="w-40">Progress</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Bugs</TableHead>
-                <TableHead>Comments</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mine.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell className="font-medium max-w-xs truncate">{s.title}</TableCell>
-                  <TableCell><span className={cn("text-xs font-semibold px-2 py-1 rounded-full", priorityColor(s.priority))}>{s.priority}</span></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={s.progress} className="h-1.5" />
-                      <span className="text-xs font-semibold w-8">{s.progress}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm"><HealthBadge status={s.health} /></TableCell>
-                  <TableCell><span className="inline-flex items-center gap-1 text-sm"><Bug className="h-3.5 w-3.5" /> {s.bugs}</span></TableCell>
-                  <TableCell><span className="inline-flex items-center gap-1 text-sm text-muted-foreground"><MessageSquare className="h-3.5 w-3.5" /> {Math.floor(Math.random() * 6) + 1}</span></TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" className="gradient-primary text-white" onClick={() => setEditing(s)}>Update</Button>
-                  </TableCell>
+        {loading ? (
+          <div className="flex h-64 items-center justify-center">
+            <div className="text-sm text-muted-foreground animate-pulse">Loading assigned stories...</div>
+          </div>
+        ) : stories.length === 0 ? (
+          <div className="flex flex-col h-64 items-center justify-center glass rounded-2xl p-6 text-center">
+            <Folder className="h-12 w-12 text-muted-foreground mb-3" />
+            <h3 className="font-semibold text-lg">No Stories Assigned</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              You don't have any user stories assigned in this active sprint.
+            </p>
+          </div>
+        ) : (
+          <div className="glass rounded-2xl overflow-hidden border">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent bg-muted/20">
+                  <TableHead>Story</TableHead>
+                  <TableHead>Priority</TableHead>
+                  <TableHead className="w-40">Progress</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Bugs</TableHead>
+                  <TableHead>AI Health</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {stories.map((s) => {
+                  const progress = s.status === "Done" ? 100 : (s.status === "In Review" ? 90 : (s.status === "In Progress" ? 50 : 0));
+                  return (
+                    <TableRow key={s.id} className="hover:bg-accent/30 border-b border-border/40">
+                      <TableCell className="font-medium max-w-xs truncate">{s.title}</TableCell>
+                      <TableCell>
+                        <span className={cn("text-xs font-semibold px-2 py-1 rounded-full", priorityColor(s.priority))}>
+                          {s.priority}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={progress} className="h-1.5" />
+                          <span className="text-xs font-semibold w-8">{progress}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm font-semibold">{s.status}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-muted/50 px-2 py-1 rounded-full border">
+                          <Bug className="h-3.5 w-3.5 text-destructive" /> {s.bugs}
+                        </span>
+                      </TableCell>
+                      <TableCell><HealthBadge status={s.health} /></TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" className="gradient-primary text-white" onClick={() => setEditing(s)}>
+                          Update
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
-      <UpdateStoryDialog story={editing} onClose={() => setEditing(null)} onAnalyze={(s) => { setEditing(null); setAnalyze(s); }} />
+      {editing && (
+        <UpdateStoryDialog
+          story={editing}
+          onClose={() => setEditing(null)}
+          onUpdateComplete={handleUpdateComplete}
+        />
+      )}
       <AiAnalysisModal story={analyze} open={!!analyze} onOpenChange={(v) => !v && setAnalyze(null)} />
     </AppShell>
   );
 }
 
-function UpdateStoryDialog({ story, onClose, onAnalyze }: { story: Story | null; onClose: () => void; onAnalyze: (s: Story) => void }) {
-  const [progress, setProgress] = useState(story?.progress ?? 0);
-  const [status, setStatus] = useState(story?.status ?? "In Progress");
-  const [bugs, setBugs] = useState(story?.bugs ?? 0);
+function UpdateStoryDialog({ story, onClose, onUpdateComplete }: { story: any; onClose: () => void; onUpdateComplete: (s: any) => void }) {
+  const [status, setStatus] = useState(story.status);
+  const [bugs, setBugs] = useState(story.bugs.toString());
+  const [timeSpent, setTimeSpent] = useState("0");
+  const [loading, setLoading] = useState(false);
 
-  if (!story) return null;
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Story updated · running AI analysis...");
-    setTimeout(() => onAnalyze({ ...story, progress, bugs, status: status as any }), 600);
+    setLoading(true);
+    try {
+      const res = await api.put(`/api/stories/${story.id}`, {
+        status,
+        bugs: parseInt(bugs) || 0,
+        hours_spent: story.hours_spent + (parseFloat(timeSpent) || 0.0)
+      });
+      toast.success("Story updated · running AI analysis...");
+      onUpdateComplete(res.data);
+      onClose();
+    } catch (err: any) {
+      toast.error("Failed to update story.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={!!story} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg glass-strong">
+      <DialogContent className="max-w-lg glass-strong border-border">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl leading-tight">Update: {story.title}</DialogTitle>
+          <DialogTitle className="font-display text-2xl font-bold">Update progress: {story.title}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-5">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label>Progress</Label>
-              <span className="text-sm font-bold">{progress}%</span>
-            </div>
-            <Slider value={[progress]} onValueChange={(v) => setProgress(v[0])} max={100} step={5} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-                <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                <SelectContent>{["To Do", "In Progress", "In Review", "Done", "Blocked"].map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["To Do", "In Progress", "In Review", "Done", "Blocked"].map((v) => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Bug count</Label>
-              <Input type="number" value={bugs} onChange={(e) => setBugs(Number(e.target.value))} className="mt-1.5" />
+              <Label htmlFor="bugs">Bug Count</Label>
+              <Input
+                id="bugs"
+                type="number"
+                value={bugs}
+                onChange={(e) => setBugs(e.target.value)}
+                className="mt-1.5"
+              />
             </div>
-            <div><Label>Time spent today (h)</Label><Input type="number" defaultValue={4} className="mt-1.5" /></div>
+            <div className="col-span-2">
+              <Label htmlFor="time-spent">Add Time Spent Today (Hours)</Label>
+              <Input
+                id="time-spent"
+                type="number"
+                step="0.5"
+                value={timeSpent}
+                onChange={(e) => setTimeSpent(e.target.value)}
+                className="mt-1.5"
+              />
+            </div>
           </div>
-          <div><Label>Comments</Label><Textarea rows={3} placeholder="What's the latest?" className="mt-1.5" /></div>
-          <Button type="submit" className="w-full gradient-primary text-white h-11">
-            <Sparkles className="h-4 w-4 mr-1.5" /> Update & run AI analysis
+          
+          <Button type="submit" disabled={loading} className="w-full gradient-primary text-white h-11 font-semibold mt-2">
+            <Sparkles className="h-4 w-4 mr-1.5" /> {loading ? "Updating..." : "Update & Run AI Analysis"}
           </Button>
         </form>
       </DialogContent>

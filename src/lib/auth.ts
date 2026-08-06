@@ -4,9 +4,12 @@ export type Role = "scrum" | "developer";
 const KEY = "srp_auth";
 
 export interface AuthUser {
+  id: number;
   role: Role;
   name: string;
   email: string;
+  token: string;
+  firstLogin: boolean;
 }
 
 export function getAuth(): AuthUser | null {
