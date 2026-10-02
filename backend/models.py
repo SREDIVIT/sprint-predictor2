@@ -1,7 +1,11 @@
 from sqlalchemy import Table, Column, Integer, String, Boolean, Float, Date, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 import datetime
-from .database import Base
+try:
+    from database import Base
+except (ImportError, ValueError):
+    from .database import Base
+
 
 # Many-to-many link table between projects and developers (users)
 project_members = Table(
@@ -22,6 +26,8 @@ class User(Base):
     is_disabled = Column(Boolean, default=False)
     first_login = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
+    reset_code = Column(String, nullable=True)
+    reset_code_expires = Column(DateTime, nullable=True)
 
     # Relationships
     projects = relationship("Project", secondary=project_members, back_populates="members")

@@ -232,13 +232,12 @@ function DevelopersPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {developers.map((d) => {
-              // Simulated metrics matching visual mockup
-              const isFirstSeed = d.email.startsWith("ava") || d.email.startsWith("marcus") || d.email.startsWith("priya");
-              const performance = isFirstSeed ? (d.email.startsWith("ava") ? 92 : (d.email.startsWith("marcus") ? 74 : 88)) : 80;
-              const assigned = isFirstSeed ? (d.email.startsWith("ava") ? 6 : (d.email.startsWith("marcus") ? 5 : 7)) : 2;
-              const completed = isFirstSeed ? (d.email.startsWith("ava") ? 4 : (d.email.startsWith("marcus") ? 2 : 5)) : 1;
-              const currentStory = isFirstSeed ? (d.email.startsWith("ava") ? "Payments checkout revamp" : (d.email.startsWith("marcus") ? "Rate limiter for public API" : "OAuth refactor")) : "Task triage";
-              const health = performance >= 85 ? "healthy" : (performance >= 70 ? "warning" : "critical");
+              const assigned = d.assigned_count ?? 0;
+              const completed = d.completed_count ?? 0;
+              const currentStory = d.current_story ?? "No active story assigned";
+              const performance = d.performance ?? 100;
+              const health = d.health ?? "healthy";
+
 
               return (
                 <div key={d.id} className={cn("glass rounded-2xl p-6 group hover:-translate-y-1 transition-all flex flex-col justify-between border", d.is_disabled ? "border-destructive/20 opacity-70" : "border-border/60")}>

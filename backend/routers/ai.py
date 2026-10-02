@@ -2,9 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, s
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from ..database import get_db
-from .. import models, schemas, auth
-from ..rag.rag_service import generate_chat_response, analyze_meeting_transcript
+try:
+    from database import get_db
+    import models, schemas, auth
+    from rag.rag_service import generate_chat_response, analyze_meeting_transcript
+except (ImportError, ValueError):
+    from ..database import get_db
+    from .. import models, schemas, auth
+    from ..rag.rag_service import generate_chat_response, analyze_meeting_transcript
+
 
 router = APIRouter(prefix="/api/ai", tags=["AI Copilot"])
 

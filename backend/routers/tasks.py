@@ -3,8 +3,13 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from ..database import get_db
-from .. import models, schemas, auth
+try:
+    from database import get_db
+    import models, schemas, auth
+except (ImportError, ValueError):
+    from ..database import get_db
+    from .. import models, schemas, auth
+
 
 router = APIRouter(prefix="/api/tasks", tags=["Task Management"])
 

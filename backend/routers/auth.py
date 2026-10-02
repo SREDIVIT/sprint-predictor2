@@ -2,8 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from ..database import get_db
-from .. import models, schemas, auth
+try:
+    from database import get_db
+    import models, schemas, auth
+except (ImportError, ValueError):
+    from ..database import get_db
+    from .. import models, schemas, auth
+
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -85,3 +90,23 @@ def change_password(
         
     db.commit()
     return {"message": "Password changed successfully"}
+
+@router.post("/forgot-password")
+def forgot_password(data: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == data.email.lower()).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No account found with this email address."
+        )
+    if user.is_disabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been disabled. Please contact your Scrum Master."
+        )
+
+    user.hashed_password = auth.get_password_hash(data.new_password)
+    user.first_login = False
+    db.commit()
+    return {"message": "Password reset successfully. You can now log in with your new password."}
+

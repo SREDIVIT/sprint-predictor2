@@ -1,9 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Sparkles, ShieldCheck, Code2, ArrowRight, Zap, LineChart, Bot, UserPlus, LogIn } from "lucide-react";
+import { Sparkles, ShieldCheck, Code2, ArrowRight, Zap, LineChart, Bot, UserPlus, LogIn, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { setAuth, type Role } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
@@ -28,6 +36,14 @@ function LoginPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Forgot password modal state
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -98,6 +114,45 @@ function LoginPage() {
       toast.error(err.response?.data?.detail || "Registration failed. Try a different email.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast.error("Please enter your registered email address.");
+      return;
+    }
+    if (!newPassword) {
+      toast.error("Please enter a new password.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirmation do not match.");
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const res = await api.post("/api/auth/forgot-password", {
+        email: forgotEmail,
+        new_password: newPassword,
+      });
+      toast.success(res.data?.message || "Password reset successfully!");
+      setEmail(forgotEmail);
+      setPassword(newPassword);
+      setForgotOpen(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || "Failed to reset password. Please verify your email.");
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -223,7 +278,21 @@ function LoginPage() {
                 <Input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5" required />
               </div>
               <div>
-                <Label htmlFor="pw">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="pw">Password</Label>
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email);
+                        setForgotOpen(true);
+                      }}
+                      className="text-xs text-primary hover:underline font-medium focus:outline-none"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <Input id="pw" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5" required />
               </div>
             </div>
@@ -240,6 +309,82 @@ function LoginPage() {
           )}
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-primary mb-1">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <KeyRound className="h-5 w-5" />
+              </div>
+              <DialogTitle className="text-xl font-bold">Reset Your Password</DialogTitle>
+            </div>
+            <DialogDescription>
+              Enter your registered account email and set a new password to access your workspace.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleForgotPassword} className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="forgot-email">Account Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="you@company.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                className="mt-1.5"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="new-pw">New Password</Label>
+              <Input
+                id="new-pw"
+                type="password"
+                placeholder="At least 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1.5"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="confirm-pw">Confirm New Password</Label>
+              <Input
+                id="confirm-pw"
+                type="password"
+                placeholder="Repeat new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-1.5"
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2 flex flex-row justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setForgotOpen(false)}
+                disabled={forgotLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={forgotLoading}
+                className="gradient-primary text-white"
+              >
+                {forgotLoading ? "Resetting..." : "Reset Password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -262,3 +407,4 @@ function RoleCard({ active, onClick, icon: Icon, title, subtitle }: { active: bo
     </button>
   );
 }
+

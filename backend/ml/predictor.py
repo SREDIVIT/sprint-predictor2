@@ -12,7 +12,11 @@ def get_model():
     if _model_data is None:
         if not os.path.exists(MODEL_PATH):
             print("Model not found. Running training script...")
-            from .train import train_and_evaluate
+            try:
+                from train import train_and_evaluate
+            except (ImportError, ValueError):
+                from .train import train_and_evaluate
+
             train_and_evaluate()
             
         _model_data = joblib.load(MODEL_PATH)

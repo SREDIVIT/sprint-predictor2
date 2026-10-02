@@ -1,16 +1,42 @@
+import os
+import sys
 import datetime
+
+# Ensure backend folder is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from sqlalchemy.orm import Session
 
-from .database import engine, Base, get_db
-from . import models, schemas, auth
-from .ml.predictor import predict_sprint_risk
-from .routers import auth as auth_router, developers, projects, sprints, tasks, stories, ai, reports, analytics
+try:
+    from database import engine, Base, get_db
+    import models, schemas, auth
+    from ml.predictor import predict_sprint_risk
+    from routers import auth as auth_router, developers, projects, sprints, tasks, stories, ai, reports, analytics
+except (ImportError, ValueError):
+    from .database import engine, Base, get_db
+    from . import models, schemas, auth
+    from .ml.predictor import predict_sprint_risk
+    from .routers import auth as auth_router, developers, projects, sprints, tasks, stories, ai, reports, analytics
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
+
+# Ensure reset columns exist in users table for existing SQLite databases
+from sqlalchemy import text
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE users ADD COLUMN reset_code VARCHAR"))
+    except Exception:
+        pass
+    try:
+        conn.execute(text("ALTER TABLE users ADD COLUMN reset_code_expires DATETIME"))
+    except Exception:
+        pass
+    conn.commit()
 
 app = FastAPI(
     title="SprintSense AI - Agile Sprint Risk Predictor API",

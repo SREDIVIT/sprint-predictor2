@@ -6,8 +6,13 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from sqlalchemy.orm import Session
 
-from .database import get_db
-from . import models, schemas
+try:
+    from database import get_db
+    import models, schemas
+except (ImportError, ValueError):
+    from .database import get_db
+    from . import models, schemas
+
 
 # Secrets & Config
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "sprintsense_super_secret_key_9876543210")

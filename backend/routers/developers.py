@@ -2,8 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from ..database import get_db
-from .. import models, schemas, auth
+try:
+    from database import get_db
+    import models, schemas, auth
+except (ImportError, ValueError):
+    from ..database import get_db
+    from .. import models, schemas, auth
+
 
 router = APIRouter(prefix="/api/developers", tags=["Developer Management"])
 
@@ -12,8 +17,36 @@ def list_developers(
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Developers list is viewable by any logged-in user
-    return db.query(models.User).filter(models.User.role == "developer").all()
+    developers = db.query(models.User).filter(models.User.role == "developer").all()
+    for dev in developers:
+        stories = db.query(models.UserStory).filter(models.UserStory.developer_id == dev.id).all()
+        tasks = db.query(models.Task).filter(models.Task.assigned_developer_id == dev.id).all()
+        
+        assigned_cnt = len(stories) + len(tasks)
+        completed_cnt = sum(1 for s in stories if s.status == "Done") + sum(1 for t in tasks if t.status in ["Done", "Completed"])
+        
+        active_story = next((s.title for s in stories if s.status != "Done"), None)
+        if not active_story:
+            active_story = next((t.title for t in tasks if t.status not in ["Done", "Completed"]), None)
+            
+        dev.assigned_count = assigned_cnt
+        dev.completed_count = completed_cnt
+        dev.current_story = active_story if active_story else ("No active story assigned" if assigned_cnt == 0 else "All tasks completed")
+        
+        if assigned_cnt == 0:
+            dev.performance = 100
+            dev.health = "healthy"
+        else:
+            perf = int(round((completed_cnt / assigned_cnt) * 100))
+            dev.performance = perf
+            if perf >= 85:
+                dev.health = "healthy"
+            elif perf >= 70:
+                dev.health = "warning"
+            else:
+                dev.health = "critical"
+
+    return developers
 
 @router.post("", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def create_developer(
@@ -42,6 +75,12 @@ def create_developer(
     db.add(db_dev)
     db.commit()
     db.refresh(db_dev)
+
+    db_dev.assigned_count = 0
+    db_dev.completed_count = 0
+    db_dev.current_story = "No active story assigned"
+    db_dev.performance = 100
+    db_dev.health = "healthy"
     
     # Create notification for audit
     notification = models.Notification(
@@ -52,6 +91,7 @@ def create_developer(
     )
     db.add(notification)
     db.commit()
+
     
     return db_dev
 

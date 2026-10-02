@@ -5,8 +5,13 @@ from typing import List, Optional
 import io
 from fpdf import FPDF
 
-from ..database import get_db
-from .. import models, schemas, auth
+try:
+    from database import get_db
+    import models, schemas, auth
+except (ImportError, ValueError):
+    from ..database import get_db
+    from .. import models, schemas, auth
+
 
 router = APIRouter(prefix="/api/reports", tags=["Reports & Exports"])
 

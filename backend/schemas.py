@@ -22,9 +22,15 @@ class UserOut(UserBase):
     is_disabled: bool
     first_login: bool
     is_active: bool
+    assigned_count: Optional[int] = 0
+    completed_count: Optional[int] = 0
+    current_story: Optional[str] = "No active story assigned"
+    performance: Optional[int] = 100
+    health: Optional[str] = "healthy"
 
     class Config:
         from_attributes = True
+
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -42,6 +48,10 @@ class TokenData(BaseModel):
 
 class PasswordChange(BaseModel):
     old_password: str
+    new_password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
     new_password: str
 
 

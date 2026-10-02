@@ -3,8 +3,13 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 import datetime
 
-from ..database import get_db
-from .. import models, schemas, auth
+try:
+    from database import get_db
+    import models, schemas, auth
+except (ImportError, ValueError):
+    from ..database import get_db
+    from .. import models, schemas, auth
+
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics & Insights"])
 
