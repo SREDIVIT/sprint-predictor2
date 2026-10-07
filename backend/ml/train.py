@@ -132,7 +132,8 @@ def train_and_evaluate():
     print(f"\nBest Model: {best_model_name}")
     
     # Ensure save directory exists
-    os.makedirs("backend/ml", exist_ok=True)
+    ml_dir = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(ml_dir, exist_ok=True)
     
     # Save the Random Forest model as primary (RF handles non-linearities and doesn't require scaling)
     # We will also save the scaler and LR model in case we need comparison in UI
@@ -143,8 +144,9 @@ def train_and_evaluate():
         "features": list(X.columns),
         "best_model_name": best_model_name
     }
-    joblib.dump(model_data, "backend/ml/model.joblib")
-    print("Model saved to backend/ml/model.joblib")
+    model_path = os.path.join(ml_dir, "model.joblib")
+    joblib.dump(model_data, model_path)
+    print(f"Model saved to {model_path}")
     
     # Save metrics JSON for the reports/analytics endpoints
     metrics = {
@@ -152,7 +154,8 @@ def train_and_evaluate():
         "random_forest": rf_metrics,
         "best_model": best_model_name
     }
-    with open("backend/ml/metrics.json", "w") as f:
+    metrics_path = os.path.join(ml_dir, "metrics.json")
+    with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=4)
         
 if __name__ == "__main__":
